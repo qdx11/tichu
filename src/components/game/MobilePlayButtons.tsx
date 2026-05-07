@@ -1,52 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { identifyCombo, canBeat } from '../../game/combo'
 import { submitAction } from '../../firebase/gameService'
 import type { Room } from '../../types/game'
-
-interface ActionBarProps {
-  room: Room
-  isMyTurn: boolean
-  canCallTichu: boolean
-}
 
 const RANK_LABELS: Record<number, string> = {
   2:'2', 3:'3', 4:'4', 5:'5', 6:'6', 7:'7', 8:'8', 9:'9', 10:'10',
   11:'J', 12:'Q', 13:'K', 14:'A'
 }
 
-export function ActionBar({ room, isMyTurn, canCallTichu }: ActionBarProps) {
+interface MobilePlayButtonsProps {
+  room: Room
+  isMyTurn: boolean
+}
+
+export function MobilePlayButtons({ room, isMyTurn }: MobilePlayButtonsProps) {
   const { uid, roomId, myHand, selectedCards, clearSelection } = useGameStore()
-  const [timer, setTimer] = useState(30)
   const [showWishPicker, setShowWishPicker] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // stale closure 방지: 항상 최신 값을 참조
-  const roomRef = useRef(room)
-  const uidRef = useRef(uid)
-  const roomIdRef = useRef(roomId)
-  roomRef.current = room
-  uidRef.current = uid
-  roomIdRef.current = roomId
-
-  useEffect(() => {
-    if (!isMyTurn) { setTimer(30); return }
-    const interval = setInterval(() => {
-      setTimer(t => {
-        if (t <= 1) {
-          // 선공(트릭 없음)이면 패스 불가 → 타이머만 리셋
-          if (roomRef.current.currentTrick?.combo) {
-            const rId = roomIdRef.current
-            const u = uidRef.current
-            if (rId && u) submitAction(rId, { type: 'PASS', uid: u })
-          }
-          return 30
-        }
-        return t - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [isMyTurn])
 
   const selectedCardObjects = myHand.filter(c => selectedCards.includes(c.id))
   const selectedCombo = selectedCardObjects.length > 0 ? identifyCombo(selectedCardObjects) : null
@@ -56,17 +27,14 @@ export function ActionBar({ room, isMyTurn, canCallTichu }: ActionBarProps) {
   const canPlay = isMyTurn && selectedCombo && (
     !currentTrick?.combo || canBeat(selectedCombo, currentTrick.combo)
   )
-
   const isBomb = selectedCombo?.type === 'BOMB_QUAD' || selectedCombo?.type === 'BOMB_SF'
   const canBombOutOfTurn = !isMyTurn && isBomb && !!currentTrick?.combo &&
     !!selectedCombo && canBeat(selectedCombo, currentTrick.combo)
+  const playEnabled = canPlay || canBombOutOfTurn
 
   async function handlePlay() {
-    if ((!canPlay && !canBombOutOfTurn) || !roomId || !uid) return
-    if (hasMahjong) {
-      setShowWishPicker(true)
-      return
-    }
+    if ((!playEnabled) || !roomId || !uid) return
+    if (hasMahjong) { setShowWishPicker(true); return }
     await submitAction(roomId, { type: 'PLAY_CARDS', uid, cards: selectedCardObjects })
     clearSelection()
   }
@@ -92,61 +60,33 @@ export function ActionBar({ room, isMyTurn, canCallTichu }: ActionBarProps) {
     }
   }
 
-  async function handleTichu() {
-    if (!roomId || !uid) return
-    await submitAction(roomId, { type: 'CALL_TICHU', uid })
-  }
-
-  const timerColor = timer <= 10 ? 'text-red-400' : 'text-green-400'
-  const playEnabled = canPlay || canBombOutOfTurn
-
   return (
     <>
-      {/* 데스크톱: 플로팅 패내기/패스 버튼 (카드 영역 우측) */}
-      <div className="hidden lg:flex absolute top-10 right-3 flex-col gap-2 z-10">
+      <div className="lg:hidden flex flex-col gap-2 w-16">
         <button
           onClick={handlePlay}
           disabled={!playEnabled}
-          className={`w-20 py-4 font-bold rounded-xl text-base transition-all shadow-lg ${
+          className={`flex-1 w-full font-bold rounded-xl text-sm transition-all shadow ${
             playEnabled
               ? canBombOutOfTurn
-                ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse active:scale-95'
-                : 'bg-white text-green-800 hover:bg-gray-100 active:scale-95'
+                ? 'bg-red-500 text-white animate-pulse active:scale-95'
+                : 'bg-white text-green-800 active:scale-95'
               : 'bg-white/20 text-white/40 cursor-not-allowed'
           }`}
         >
-          {canBombOutOfTurn ? '💣' : '패 내기'}
+          {canBombOutOfTurn ? '💣' : <><span>패</span><br/><span>내기</span></>}
         </button>
-
         <button
           onClick={handlePass}
           disabled={!isMyTurn || !currentTrick?.combo || isSubmitting}
-          className={`w-20 py-4 font-bold rounded-xl text-base transition-all shadow-lg ${
+          className={`flex-1 w-full font-bold rounded-xl text-sm transition-all shadow ${
             isMyTurn && currentTrick?.combo
-              ? 'bg-white/25 text-white hover:bg-white/35 active:scale-95'
+              ? 'bg-white/25 text-white active:scale-95'
               : 'bg-white/10 text-white/30 cursor-not-allowed'
           }`}
         >
           패스
         </button>
-      </div>
-
-      {/* 인라인: 티츄 버튼 + 타이머 */}
-      <div className="flex items-center gap-1.5">
-        {canCallTichu && (
-          <button
-            onClick={handleTichu}
-            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-xs transition-all shadow"
-          >
-            티츄!
-          </button>
-        )}
-
-        {isMyTurn && (
-          <div className={`text-xs font-mono font-bold ${timerColor} min-w-[28px] text-center`}>
-            {timer}초
-          </div>
-        )}
       </div>
 
       {/* 소원 선택 모달 */}

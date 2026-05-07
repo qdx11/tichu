@@ -11,6 +11,7 @@ import { CardHand } from '../game/CardHand'
 import { TrickArea } from '../game/TrickArea'
 import { ActionBar } from '../game/ActionBar'
 import { ChatPanel } from '../chat/ChatPanel'
+import { MobilePlayButtons } from '../game/MobilePlayButtons'
 import { GrandTichuModal } from '../modals/GrandTichuModal'
 import { CardExchangeModal } from '../modals/CardExchangeModal'
 import { DragonGiveModal } from '../modals/DragonGiveModal'
@@ -140,18 +141,19 @@ export function GameLayout() {
   return (
     <div className="min-h-screen bg-[#1a4a2e] flex flex-col">
       {/* 헤더 */}
-      <div className="bg-black/20 px-4 py-2 flex items-center justify-between text-white text-sm">
-        <div className="flex items-center gap-3">
-          <span className="text-green-300 font-semibold">🐦 · 🐕 · 🦅 · 🐉</span>
-          <span className="text-white/50">|</span>
-          <span>방 <span className="font-mono font-bold">{room.meta.code}</span></span>
-          <span className="text-white/50">|</span>
-          <span>라운드 {room.meta.currentRound}</span>
+      <div className="bg-black/20 px-3 py-2 flex items-center justify-between text-white text-sm gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-green-300 font-semibold hidden sm:inline">🐦 · 🐕 · 🦅 · 🐉</span>
+          <span className="text-white/50 hidden sm:inline">|</span>
+          <span className="shrink-0">방 <span className="font-mono font-bold">{room.meta.code}</span></span>
+          <span className="text-white/50 hidden sm:inline">|</span>
+          <span className="hidden sm:inline shrink-0">라운드 {room.meta.currentRound}</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span>우리팀 <span className="font-bold text-green-300">{room.scores.total.teamA}</span></span>
-          <span className="text-white/50">vs</span>
-          <span>상대팀 <span className="font-bold text-red-300">{room.scores.total.teamB}</span></span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="font-bold text-green-300">{room.scores.total.teamA}</span>
+          <span className="text-white/50 text-xs">vs</span>
+          <span className="font-bold text-red-300">{room.scores.total.teamB}</span>
+          <span className="text-white/50 text-xs ml-1">R{room.meta.currentRound}</span>
         </div>
       </div>
 
@@ -275,11 +277,24 @@ export function GameLayout() {
               </div>
             )}
 
-            <CardHand
-              cards={myHand}
-              currentTrick={room.currentTrick?.combo ?? null}
-              isMyTurn={isMyTurn}
-            />
+            {/* 모바일: 카드(좌) + 버튼(우) 나란히, 데스크톱: 카드만 */}
+            <div className="lg:hidden flex gap-2 items-stretch">
+              <div className="flex-1 min-w-0">
+                <CardHand
+                  cards={myHand}
+                  currentTrick={room.currentTrick?.combo ?? null}
+                  isMyTurn={isMyTurn}
+                />
+              </div>
+              <MobilePlayButtons room={room} isMyTurn={isMyTurn} />
+            </div>
+            <div className="hidden lg:block">
+              <CardHand
+                cards={myHand}
+                currentTrick={room.currentTrick?.combo ?? null}
+                isMyTurn={isMyTurn}
+              />
+            </div>
           </div>
         </div>
 

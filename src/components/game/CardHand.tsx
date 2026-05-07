@@ -96,8 +96,20 @@ export function CardHand({ cards, currentTrick, isMyTurn }: CardHandProps) {
         )}
       </div>
 
-      {/* 카드 목록 */}
-      <div className="flex flex-wrap justify-center gap-1">
+      {/* 카드 목록 - 모바일: 2행 그리드(7열), 데스크톱: flex wrap */}
+      <div className="lg:hidden grid grid-cols-7 gap-1 pt-3">
+        {sortedCards.map(card => (
+          <CardComponent
+            key={card.id}
+            card={card}
+            selected={selectedCards.includes(card.id)}
+            highlight={isMyTurn && !selectedCards.includes(card.id) && highlightedCardIds.has(card.id)}
+            onClick={() => isMyTurn && toggleCardSelect(card.id)}
+            size="sm"
+          />
+        ))}
+      </div>
+      <div className="hidden lg:flex flex-wrap justify-center gap-1">
         {sortedCards.map(card => (
           <CardComponent
             key={card.id}

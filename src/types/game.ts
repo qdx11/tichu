@@ -34,6 +34,7 @@ export interface CurrentTrick {
   combo: Combo | null
   plays: TrickPlay[]
   passCount: number
+  passedUids: string[]  // 이 트릭에서 이미 패스한 플레이어 uid 목록
 }
 
 export interface RoundScore {

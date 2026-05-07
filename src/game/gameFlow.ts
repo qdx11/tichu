@@ -170,7 +170,7 @@ export async function processPlay(
   // 손패에서 카드 제거
   await removeCardsFromHand(roomId, uid, cards)
 
-  // 트릭 업데이트
+  // 트릭 업데이트 (패스한 플레이어 목록은 유지 - 티추 규칙상 한번 패스하면 해당 트릭 참가 불가)
   const newTrick: CurrentTrick = {
     leadUid: currentTrick?.leadUid ?? uid,
     combo,
@@ -179,6 +179,7 @@ export async function processPlay(
       { uid, cards, timestamp: Date.now() }
     ],
     passCount: 0,
+    passedUids: currentTrick?.passedUids ?? [],
   }
   await setCurrentTrick(roomId, newTrick)
 
@@ -248,6 +249,7 @@ export async function processPass(roomId: string, room: Room, uid: string) {
     .filter(p => p.handCount > 0).length
 
   const newPassCount = (trick.passCount || 0) + 1
+  const newPassedUids = [...(trick.passedUids ?? []), uid]
 
   // 트릭 선공 제외 모두 패스 → 트릭 종료
   if (activePlayers > 0 && newPassCount >= activePlayers - 1) {
@@ -256,8 +258,9 @@ export async function processPass(roomId: string, room: Room, uid: string) {
   }
 
   const playersRaw: Player[] = Object.values(playersData as Record<string, Player>)
-  const nextUid = getNextPlayer(playersRaw, uid)
-  await update(ref(db, `rooms/${roomId}/currentTrick`), { passCount: newPassCount })
+  // 이미 패스한 플레이어는 건너뜀
+  const nextUid = getNextPlayer(playersRaw, uid, newPassedUids)
+  await update(ref(db, `rooms/${roomId}/currentTrick`), { passCount: newPassCount, passedUids: newPassedUids })
   await updateGameState(roomId, { currentPlayerUid: nextUid })
 }
 
@@ -443,14 +446,14 @@ function normalizeTrickPlays(
   return Object.values((plays ?? {}) as Record<string, TrickPlay>)
 }
 
-function getNextPlayer(players: Player[], currentUid: string): string {
+function getNextPlayer(players: Player[], currentUid: string, passedUids: string[] = []): string {
   const active = players
-    .filter(p => p.handCount > 0)
+    .filter(p => p.handCount > 0 && !passedUids.includes(p.uid))
     .sort((a, b) => a.seatIndex - b.seatIndex)
 
   if (active.length === 0) return currentUid
   const currentIndex = active.findIndex(p => p.uid === currentUid)
-  // currentUid가 방금 패를 다 냈으면 active에 없음 → 첫 번째 활성 플레이어
+  // currentUid가 방금 패를 다 냈거나 이미 패스했으면 → 첫 번째 활성 플레이어
   if (currentIndex === -1) return active[0].uid
   return active[(currentIndex + 1) % active.length].uid
 }
