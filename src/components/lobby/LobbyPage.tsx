@@ -14,15 +14,24 @@ export function LobbyPage() {
   const [tab, setTab] = useState<'create' | 'join'>('create')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [targetScore, setTargetScore] = useState(1000)
+  const [customScore, setCustomScore] = useState('')
+
+  const PRESETS = [500, 1000, 2000]
+
+  const resolvedScore = targetScore === 0 ? (parseInt(customScore) || 1000) : targetScore
 
   async function handleCreate() {
     if (!nickname.trim()) { setError('닉네임을 입력해주세요'); return }
+    if (targetScore === 0 && (!parseInt(customScore) || parseInt(customScore) < 100)) {
+      setError('목표 점수는 100 이상 입력해주세요'); return
+    }
     setLoading(true); setError('')
     try {
       const user = await ensureAnonymousAuth()
       setAuth(user.uid, nickname.trim())
       localStorage.setItem('tichu_nickname', nickname.trim())
-      const roomId = await createRoom(user.uid, nickname.trim())
+      const roomId = await createRoom(user.uid, nickname.trim(), resolvedScore)
       setRoomId(roomId)
       navigate(`/room/${roomId}`)
     } catch (e: any) {
@@ -102,6 +111,50 @@ export function LobbyPage() {
                 className="mt-1 w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
               />
             </div>
+
+            {/* 목표 점수 (방 만들기 탭만) */}
+            {tab === 'create' && (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">목표 점수</label>
+                <div className="mt-1 flex gap-2">
+                  {PRESETS.map(score => (
+                    <button
+                      key={score}
+                      type="button"
+                      onClick={() => setTargetScore(score)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${
+                        targetScore === score
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-green-400'
+                      }`}
+                    >
+                      {score}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setTargetScore(0)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${
+                      targetScore === 0
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-green-400'
+                    }`}
+                  >
+                    직접
+                  </button>
+                </div>
+                {targetScore === 0 && (
+                  <input
+                    type="number"
+                    value={customScore}
+                    onChange={e => setCustomScore(e.target.value)}
+                    placeholder="점수 입력 (100 이상)"
+                    min={100}
+                    className="mt-2 w-full px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                  />
+                )}
+              </div>
+            )}
 
             {/* 방 코드 (입장 탭) */}
             {tab === 'join' && (

@@ -6,7 +6,7 @@ function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
-export async function createRoom(hostUid: string, nickname: string): Promise<string> {
+export async function createRoom(hostUid: string, nickname: string, targetScore = 1000): Promise<string> {
   const code = generateCode()
   const roomRef = push(ref(db, 'rooms'))
   const roomId = roomRef.key!
@@ -40,7 +40,7 @@ export async function createRoom(hostUid: string, nickname: string): Promise<str
       createdAt: Date.now(),
       status: 'waiting',
       currentRound: 0,
-      targetScore: 1000,
+      targetScore,
     },
     players: { [hostUid]: host },
     gameState: initialGameState,
